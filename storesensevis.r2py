@@ -1,0 +1,252 @@
+"""
+<Program Name>
+  storesensevis.r2py
+
+<Started>
+  20 August 2014
+
+<Author>
+  Seth Miller (NYU)
+
+<Purpose>
+  This is a library for POSTing sensor data to a
+  website (sensevis.poly.edu) for backhauling.
+
+Example Use:
+  # In your program, import this library:
+  dy_import_module_symbols('storesensevis.r2py')
+
+  data = []
+  measurements = {}
+  
+  # Collect some data...
+  for x in range(0, 10):
+    measurements['gps'] = getLocation()
+    measurements['speed'] = getSpeed()
+    measurements['fuel_level'] = getFuelLevel()
+    measurements['fuel_consumption'] = getFuelConsumption()
+    # Each data entry requires a timestamp for the POST to succeed.
+    data.appends(storesensevis_timestamp(measurements))
+
+  storesensevis_post(data, 'mycollection')
+   
+"""
+
+dy_import_module_symbols("sensorlib.r2py")
+dy_import_module_symbols("urllib.r2py")
+json = dy_import_module("json.r2py")
+
+
+# Retrieves the user's public key.
+def _getpublickey():
+  # We need a unique key to authenticate the user's POST,
+  # otherwise anyone could POST to that user's collections.
+  # Let's use their public keys.
+  keyfile = ''
+  files = listfiles()
+  for fn in files:
+    # We don't know the username, so we'll 
+    # look up the file by it's extension.
+    try:
+      if fn.split('.')[1] == 'publickey':
+        keyfile = fn
+        break
+    # Skip directories
+    except IndexError:
+      continue
+  fileobject = openfile(keyfile, False)
+  key = fileobject.readat(None, 0)
+  fileobject.close()
+
+  return key
+
+
+
+
+_publickey = _getpublickey()
+_device_id = '12345'#request_data(mycontext['sensor_socket'], 'getSubscriberId', [])
+POST_DELIMITER = '\n\n\n'
+
+RECONNECT_WAIT_TIME = 3
+
+_fileproperties = {'buffered':False, 'lock':createlock()}
+
+
+
+
+# Contructs a POST out of sensor data
+def _buildpost(data, collection):
+  # POSTs to sensevis must have the user's public key, as well as a 
+  # unique device id (IMEI number) for differentiating end-user devices. 
+  # It also needs the sensor data in JSON to prep it for storage in
+  # MongoDB.  Finally, the post needs the name of which collection we're 
+  # backhauling data into.
+  datastr = 'key=' + urllib_quote(_publickey)+'&id=' + urllib_quote(_device_id) + \
+      '&entries=' + urllib_quote(json.dumps(data)) + '&collection='+urllib_quote(collection)
+  
+  # Since the POST is simple, we'll build it ourselves.
+  post = 'POST /main/ HTTP/1.1' + \
+      '\nHost: sensevis.poly.edu' + \
+      '\nContent-Type: application/x-www-form-urlencoded' + \
+      '\nContent-Length: '+str(len(datastr)) + \
+      '\n\n' + datastr
+
+  return post
+
+
+
+
+# Find and return a socket object to the first open port.
+def _getsocket():
+  ports = list(getresources()[0]['connport'])
+  for port in ports:
+    try:
+      # Open a connection with sensevis.poly.edu
+      socketobject = openconnection('128.238.63.68', 80, \
+          getmyip(), int(port), RECONNECT_WAIT_TIME)
+      return socketobject
+    # The port wasn't open, so keep looking.
+    except ResourceForbiddenError or DuplicateTupleError \
+        or AlreadyListeningError or CleanupInProgressError:
+      continue
+  # No ports were open...
+  return None
+  
+
+
+# Sends the POST with the given socket object.
+def _send(socket, post):
+  if socket:
+    socket.send(post)
+    socket.close()
+  else:
+    _write_to_buffer(post)
+
+
+
+
+# Writes a POST to a buffer file, so it can be sent later.
+def _write_to_buffer(post):
+  _fileproperties['lock'].acquire(True)
+  fileobject = openfile('postbuffer.txt', True)
+  eof = len(fileobject.readat(None, 0)) 
+  fileobject.writeat(post+POST_DELIMITER, eof)
+  fileobject.close()
+  _fileproperties['lock'].release()
+
+
+    
+# Retrieves all the POSTs in the buffer file starting from 
+# the offest
+def _getbuffer(offset):
+  posts = []
+  _fileproperties['lock'].acquire(True)
+  fileobject = openfile('postbuffer.txt', True)
+  try:
+    posts = fileobject.readat(None, offset).split(POST_DELIMITER)
+  except SeekPastEndOfFileError:
+    pass
+  finally:
+    fileobject.close()
+    _fileproperties['lock'].release()
+    return posts
+
+
+
+# Sends all the POSTs in the buffer file and then removes the file.
+def _sendbuffer():
+  posts = _getbuffer(0)
+  eof = 0
+  while len(posts) > 0:
+    for post in posts:
+      eof += len(post+POST_DELIMITER)
+    eof -= len(POST_DELIMITER)
+
+    socket = None
+    count = 0
+    while count < len(posts):
+      try:
+        if socket is None:
+          socket = _getsocket()
+        _send(socket, posts[count])
+        count += 1
+      except:
+        socket = None
+        sleep(RECONNECT_WAIT_TIME)
+        continue 
+    # Check if any new POSTs have been 
+    # made since starting this thread.
+    posts = _getbuffer(eof)
+  
+  _buffered = False
+  removefile('postbuffer.txt')
+    
+
+  
+
+def storesensevis_post(data, collection):
+  """
+  <Purpose>
+    POSTs sensor data to a website (sensevis.poly.edu) where it
+    can be stored into a database.
+
+  <Arguments>
+    data:
+        A list of sensor data entries (dicts) to be POSTed.
+    collection:
+        The name of the collection the data will be stored into. 
+
+  <Exceptions>
+    HttpError 403:
+        Missing permission to access the given collection or the
+        collection does not exist. (The latter is not a 404 error, 
+        as this would potentially expose the existence of private 
+        collections to the public.) 
+    TypeError:
+        The form of the given data is incorrect. 
+            
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    True if the POST was successful.
+  """
+  post = _buildpost(data, collection)
+  try:
+    _send(_getsocket(), post)
+  except TimeoutError or InternetConnectivityError \
+      or SocketClosedLocal or SocketClosedRemote:
+    _write_to_buffer(post)
+    if not _file['buffered']:
+      _file['buffered'] = True
+      createthread(_sendbuffer)
+
+
+
+
+def storesensevis_timestamp(entry):
+  """
+  <Purpose>
+    Places a timestamp of the current time on the given data entry,
+    prepping the form of the entry for eventual POSTing.
+
+  <Arguments>
+    entry:
+      A dict of sensor data literally just collected, whose keys are
+      the names of your sensors or measurements.  The dict's values 
+      are those of the data collected. 
+      (E.g. entry = {'gps':(49.372, -73.998), 'batteryLevel':74})
+    
+  <Exceptions>
+    TypeError:
+        Raised if 'entry' is not a dict.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    A dict containing the given entry dict, as well as the (current) 
+    time the sensor data was collected.
+  """
+  return {'time':getruntime(), 'sensors':entry} 

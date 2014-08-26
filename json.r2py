@@ -1,0 +1,66 @@
+"""
+<Program Name>
+  json.r2py
+
+<Started>
+  20 August 2014
+
+<Author>
+  Seth Miller (NYU)
+
+<Purpose>
+  Provides methods for translating between JSON and repy.
+"""
+  
+def dumps(repydata):
+  """
+  <Purpose>
+    Encodes repy data types into JSON objects
+
+  <Arguments>
+    repydata:
+        Repy data to be encoded into JSON.
+
+  <Exceptions>
+    None.
+
+  <Side Effects>
+    None.
+
+  <Returns>
+    A string representing the repy data as a JSON object.
+  """
+
+  jsonstr = ""
+ 
+  if isinstance(repydata, dict):
+    jsonstr += "{"
+    for key in repydata:
+      jsonstr += dumps(key) + ":" + dumps(repydata[key]) + ", "
+    jsonstr = jsonstr[0:-2]+"}"
+      
+  elif isinstance(repydata, list) or isinstance(repydata, tuple) or isinstance(repydata, set):
+    jsonstr += "["
+    for item in repydata:
+      jsonstr += dumps(item) + ", "
+    jsonstr = jsonstr[0:-2]+"]"
+
+  elif isinstance(repydata, bool):
+    if repydata == True:
+      jsonstr += "true"
+    else:
+      jsonstr += "false"
+
+  elif isinstance(repydata, int) or isinstance(repydata, long) or isinstance(repydata, float):
+    jsonstr += str(repydata)
+
+  elif repydata is None:
+    jsonstr += "null"
+
+  elif repydata == str(repydata):
+    jsonstr += "\"" + str(repydata) + "\""
+
+  else:
+    raise TypeError("Cannot JSON serialize object of type '"+str(type(repydata))+".'")
+     
+  return jsonstr

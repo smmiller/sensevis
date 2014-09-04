@@ -183,7 +183,7 @@ def storesense_post(data, collection):
     None.
 
   <Returns>
-    True if the POST was successful.
+    None.
   """
   post = _buildpost(data, collection)
   try:

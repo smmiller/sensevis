@@ -1,6 +1,6 @@
 """
 <Program Name>
-  storesensevis.r2py
+  storesense.r2py
 
 <Started>
   20 August 2014
@@ -26,9 +26,9 @@ Example Use:
     measurements['fuel_level'] = getFuelLevel()
     measurements['fuel_consumption'] = getFuelConsumption()
     # Each data entry requires a timestamp for the POST to succeed.
-    data.appends(storesensevis_timestamp(measurements))
+    data.appends(storesense_timestamp(measurements))
 
-  storesensevis_post(data, 'mycollection')
+  storesense_post(data, 'mycollection')
    
 """
 
@@ -37,37 +37,11 @@ dy_import_module_symbols("urllib.r2py")
 json = dy_import_module("json.r2py")
 
 
-# Retrieves the user's public key.
-def _getpublickey():
-  # We need a unique key to authenticate the user's POST,
-  # otherwise anyone could POST to that user's collections.
-  # Let's use their public keys.
-  keyfile = ''
-  files = listfiles()
-  for fn in files:
-    # We don't know the username, so we'll 
-    # look up the file by it's extension.
-    try:
-      if fn.split('.')[1] == 'publickey':
-        keyfile = fn
-        break
-    # Skip directories
-    except IndexError:
-      continue
-  fileobject = openfile(keyfile, False)
-  key = fileobject.readat(None, 0)
-  fileobject.close()
 
-  return key
-
-
-
-
-_publickey = _getpublickey()
-_device_id = '12345'#request_data(mycontext['sensor_socket'], 'getSubscriberId', [])
+_device_id = request_data(mycontext['sensor_socket'], 'getSubscriberId', [])
 POST_DELIMITER = '\n\n\n'
 
-RECONNECT_WAIT_TIME = 3
+RECONNECT_WAIT_TIME = 5
 
 _fileproperties = {'buffered':False, 'lock':createlock()}
 
@@ -76,12 +50,11 @@ _fileproperties = {'buffered':False, 'lock':createlock()}
 
 # Contructs a POST out of sensor data
 def _buildpost(data, collection):
-  # POSTs to sensevis must have the user's public key, as well as a 
-  # unique device id (IMEI number) for differentiating end-user devices. 
-  # It also needs the sensor data in JSON to prep it for storage in
-  # MongoDB.  Finally, the post needs the name of which collection we're 
-  # backhauling data into.
-  datastr = 'key=' + urllib_quote(_publickey)+'&id=' + urllib_quote(_device_id) + \
+  # POSTs to sensevis must have the user's device id (IMEI number) 
+  # for differentiating end-user devices.  It also needs the sensor 
+  # data in JSON to prep it for storage in MongoDB.  Finally, the 
+  # post needs the name of which collection we're backhauling data into.
+  datastr = 'id=' + urllib_quote(_device_id) + \
       '&entries=' + urllib_quote(json.dumps(data)) + '&collection='+urllib_quote(collection)
   
   # Since the POST is simple, we'll build it ourselves.
@@ -184,7 +157,7 @@ def _sendbuffer():
 
   
 
-def storesensevis_post(data, collection):
+def storesense_post(data, collection):
   """
   <Purpose>
     POSTs sensor data to a website (sensevis.poly.edu) where it
@@ -225,7 +198,7 @@ def storesensevis_post(data, collection):
 
 
 
-def storesensevis_timestamp(entry):
+def storesense_timestamp(entry):
   """
   <Purpose>
     Places a timestamp of the current time on the given data entry,

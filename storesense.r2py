@@ -49,13 +49,14 @@ _fileproperties = {'buffered':False, 'lock':createlock()}
 
 
 # Contructs a POST out of sensor data
-def _buildpost(data, collection):
+def _buildpost(data, collection, user):
   # POSTs to sensevis must have the user's device id (IMEI number) 
   # for differentiating end-user devices.  It also needs the sensor 
   # data in JSON to prep it for storage in MongoDB.  Finally, the 
   # post needs the name of which collection we're backhauling data into.
   datastr = 'id=' + urllib_quote(_device_id) + \
-      '&entries=' + urllib_quote(json.dumps(data)) + '&collection='+urllib_quote(collection)
+      '&entries=' + urllib_quote(json.dumps(data)) + '&collection='+urllib_quote(collection) + \
+      '&user=' + urllib_quote(user)
   
   # Since the POST is simple, we'll build it ourselves.
   post = 'POST /main/ HTTP/1.1' + \
@@ -157,7 +158,7 @@ def _sendbuffer():
 
   
 
-def storesense_post(data, collection):
+def storesense_post(data, collection, user):
   """
   <Purpose>
     POSTs sensor data to a website (sensevis.poly.edu) where it
@@ -167,7 +168,9 @@ def storesense_post(data, collection):
     data:
         A list of sensor data entries (dicts) to be POSTed.
     collection:
-        The name of the collection the data will be stored into. 
+        The name of the collection the data will be stored into.
+    user:
+        The username of the person owning the specified collection.
 
   <Exceptions>
     HttpError 403:
@@ -185,7 +188,7 @@ def storesense_post(data, collection):
   <Returns>
     None.
   """
-  post = _buildpost(data, collection)
+  post = _buildpost(data, collection, user)
   try:
     _send(_getsocket(), post)
   except TimeoutError or InternetConnectivityError \

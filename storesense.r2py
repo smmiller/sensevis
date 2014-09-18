@@ -28,7 +28,7 @@ Example Use:
     # Each data entry requires a timestamp for the POST to succeed.
     data.appends(storesense_timestamp(measurements))
 
-  storesense_post(data, 'mycollection')
+  storesense_post(data, 'mycollection', 'myusername')
    
 """
 

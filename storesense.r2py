@@ -16,6 +16,8 @@ Example Use:
   # In your program, import this library:
   dy_import_module_symbols('storesense.r2py')
 
+  device_id = request_data(your_sensor_socket, 'getSubscriberID', [])
+  
   data = []
   measurements = {}
   
@@ -28,7 +30,7 @@ Example Use:
     # Each data entry requires a timestamp for the POST to succeed.
     data.appends(storesense_timestamp(measurements))
 
-  storesense_post(data, 'mycollection', 'myusername')
+  storesense_post(data, device_id, 'mycollection', 'myusername')
    
 """
 
@@ -38,7 +40,6 @@ json = dy_import_module("json.r2py")
 
 
 
-_device_id = request_data(mycontext['sensor_socket'], 'getSubscriberId', [])
 POST_DELIMITER = '\n\n\n'
 
 RECONNECT_WAIT_TIME = 5
@@ -49,12 +50,12 @@ _fileproperties = {'buffered':False, 'lock':createlock()}
 
 
 # Contructs a POST out of sensor data
-def _buildpost(data, collection, user):
+def _buildpost(data, device_id, collection, user):
   # POSTs to sensevis must have the user's device id (IMEI number) 
   # for differentiating end-user devices.  It also needs the sensor 
   # data in JSON to prep it for storage in MongoDB.  Finally, the 
   # post needs the name of which collection we're backhauling data into.
-  datastr = 'id=' + urllib_quote(_device_id) + \
+  datastr = 'id=' + urllib_quote(device_id) + \
       '&entries=' + urllib_quote(json.dumps(data)) + '&collection='+urllib_quote(collection) + \
       '&user=' + urllib_quote(user)
   
@@ -158,7 +159,7 @@ def _sendbuffer():
 
   
 
-def storesense_post(data, collection, user):
+def storesense_post(data, device_id, collection, user):
   """
   <Purpose>
     POSTs sensor data to a website (sensevis.poly.edu) where it
@@ -188,7 +189,7 @@ def storesense_post(data, collection, user):
   <Returns>
     None.
   """
-  post = _buildpost(data, collection, user)
+  post = _buildpost(data, device_id, collection, user)
   try:
     _send(_getsocket(), post)
   except TimeoutError or InternetConnectivityError \

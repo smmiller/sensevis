@@ -16,7 +16,7 @@ Example Use:
   # In your program, import this library:
   dy_import_module_symbols('storesense.r2py')
 
-  device_id = request_data(your_sensor_socket, 'getSubscriberID', [])
+  device_id = request_data(my_sensor_socket, 'getSubscriberID', [])
   
   data = []
   measurements = {}

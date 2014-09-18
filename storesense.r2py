@@ -14,7 +14,7 @@
 
 Example Use:
   # In your program, import this library:
-  dy_import_module_symbols('storesensevis.r2py')
+  dy_import_module_symbols('storesense.r2py')
 
   data = []
   measurements = {}

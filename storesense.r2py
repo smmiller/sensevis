@@ -28,7 +28,7 @@ Example Use:
     measurements['fuel_level'] = getFuelLevel()
     measurements['fuel_consumption'] = getFuelConsumption()
     # Each data entry requires a timestamp for the POST to succeed.
-    data.appends(storesense_timestamp(measurements))
+    data.append(storesense_timestamp(measurements))
 
   storesense_post(data, device_id, 'mycollection', 'myusername')
    

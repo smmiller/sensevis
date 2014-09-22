@@ -53,8 +53,9 @@ _fileproperties = {'buffered':False, 'lock':createlock()}
 def _buildpost(data, device_id, collection, user):
   # POSTs to sensevis must have the user's device id (IMEI number) 
   # for differentiating end-user devices.  It also needs the sensor 
-  # data in JSON to prep it for storage in MongoDB.  Finally, the 
-  # post needs the name of which collection we're backhauling data into.
+  # data in JSON so it can be deserialized server-side.  Finally, the 
+  # post needs the name of which collection we're backhauling data into
+  # and the user it belongs to.
   datastr = 'id=' + urllib_quote(device_id) + \
       '&entries=' + urllib_quote(json.dumps(data)) + '&collection='+urllib_quote(collection) + \
       '&user=' + urllib_quote(user)

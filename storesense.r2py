@@ -200,7 +200,7 @@ def storesense_post(data, device_id, collection, user):
   try:
     _send(_getsocket(), post)
   except TimeoutError or InternetConnectivityError \
-      or SocketClosedLocal or SocketClosedRemote:
+      or SocketClosedLocal or SocketClosedRemote or SocketWouldBlockError:
     _write_to_buffer(post)
 
 

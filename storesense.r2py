@@ -195,8 +195,8 @@ def storesense_post(data, device_id, collection, user):
   except TimeoutError or InternetConnectivityError \
       or SocketClosedLocal or SocketClosedRemote:
     _write_to_buffer(post)
-    if not _file['buffered']:
-      _file['buffered'] = True
+    if not _fileproperties['buffered']:
+      _fileproperties['buffered'] = True
       createthread(_sendbuffer)
 
 

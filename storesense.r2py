@@ -87,16 +87,6 @@ def _getsocket():
       continue
   # No ports were open...
   return None
-  
-
-
-# Sends the POST with the given socket object.
-def _send(socket, post):
-  if socket:
-    socket.send(post)
-    socket.close()
-  else:
-    _write_to_buffer(post)
 
 
 
@@ -137,6 +127,7 @@ def _getbuffer(offset):
 
 # Sends all the POSTs in the buffer file and then removes the file.
 def _sendbuffer():
+  socket = None
   posts = _getbuffer(0)
   eof = 0
   while len(posts) > 0:
@@ -144,23 +135,23 @@ def _sendbuffer():
       eof += len(post+POST_DELIMITER)
     eof -= len(POST_DELIMITER)
 
-    socket = None
     count = 0
     while count < len(posts):
       try:
         if socket is None:
           socket = _getsocket()
-        if socket:
-          _send(socket, posts[count])
+        socket.send(posts[count])
           count += 1
-      except:
-        socket = None
+      except Exception as e:
+        if not isinstance(e, SocketWouldBlockError):
+          socket = None
         sleep(RECONNECT_WAIT_TIME)
         continue 
     # Check if any new POSTs have been 
     # made since starting this thread.
     posts = _getbuffer(eof)
   
+  socket.close()
   _fileproperties['buffered'] = False
   removefile('postbuffer.txt')
     
@@ -198,10 +189,14 @@ def storesense_post(data, device_id, collection, user):
     None.
   """
   post = _buildpost(data, device_id, collection, user)
+  socket = _getsocket()
   try:
-    _send(_getsocket(), post)
-  except TimeoutError or InternetConnectivityError \
-      or SocketClosedLocal or SocketClosedRemote or SocketWouldBlockError:
+    socket.send(post)
+    socket.close()
+  except AttributeError or TimeoutError or InternetConnectivityError \
+      or SocketClosedLocal or SocketClosedRemote or SocketWouldBlockError as e:
+    if not isinstance(e, AttributeError):
+      socket.close()
     _write_to_buffer(post)
 
 

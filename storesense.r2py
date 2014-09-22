@@ -141,7 +141,7 @@ def _sendbuffer():
         if socket is None:
           socket = _getsocket()
         socket.send(posts[count])
-          count += 1
+        count += 1
       except Exception as e:
         if not isinstance(e, SocketWouldBlockError):
           socket = None

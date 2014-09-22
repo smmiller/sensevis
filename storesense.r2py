@@ -143,8 +143,9 @@ def _sendbuffer():
       try:
         if socket is None:
           socket = _getsocket()
-        _send(socket, posts[count])
-        count += 1
+        if socket:
+          _send(socket, posts[count])
+          count += 1
       except:
         socket = None
         sleep(RECONNECT_WAIT_TIME)
@@ -153,7 +154,7 @@ def _sendbuffer():
     # made since starting this thread.
     posts = _getbuffer(eof)
   
-  _buffered = False
+  _fileproperties['buffered'] = False
   removefile('postbuffer.txt')
     
 

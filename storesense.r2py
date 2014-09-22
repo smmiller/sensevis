@@ -101,6 +101,8 @@ def _send(socket, post):
 
 
 # Writes a POST to a buffer file, so it can be sent later.
+# Then it starts a new thread to send the buffer if one hasn't 
+# already been created.
 def _write_to_buffer(post):
   _fileproperties['lock'].acquire(True)
   fileobject = openfile('postbuffer.txt', True)

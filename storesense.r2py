@@ -36,6 +36,7 @@ Example Use:
 
 dy_import_module_symbols("sensorlib.r2py")
 dy_import_module_symbols("urllib.r2py")
+dy_import_module_symbols("time.r2py")
 json = dy_import_module("json.r2py")
 
 
@@ -46,7 +47,7 @@ RECONNECT_WAIT_TIME = 5
 
 _fileproperties = {'buffered':False, 'lock':createlock()}
 
-
+time_updatetime(12345)
 
 
 # Contructs a POST out of sensor data
@@ -226,4 +227,4 @@ def storesense_timestamp(entry):
     A dict containing the given entry dict, as well as the (current) 
     time the sensor data was collected.
   """
-  return {'time':getruntime(), 'sensors':entry} 
+  return {'time':time_getunixtime(), 'sensors':entry} 

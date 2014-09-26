@@ -46,7 +46,7 @@ RECONNECT_WAIT_TIME = 5
 
 _fileproperties = {'buffered':False, 'lock':createlock()}
 
-time.time_updatetime(12345)
+time.time_updatetime(list(getresources()[0]['messport'])[0])
 
 
 # Contructs a POST out of sensor data

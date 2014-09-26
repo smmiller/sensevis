@@ -36,7 +36,6 @@ Example Use:
 
 urllib = dy_import_module("urllib.r2py")
 time = dy_import_module("time.r2py")
-ntp_time = dy_import_module("ntp_time.r2py")
 json = dy_import_module("json.r2py")
 
 

@@ -37,6 +37,7 @@ Example Use:
 dy_import_module_symbols("sensorlib.r2py")
 dy_import_module_symbols("urllib.r2py")
 dy_import_module_symbols("time.r2py")
+dy_import_module_symbols("ntp_time.r2py")
 json = dy_import_module("json.r2py")
 
 
@@ -47,6 +48,7 @@ RECONNECT_WAIT_TIME = 5
 
 _fileproperties = {'buffered':False, 'lock':createlock()}
 
+time_register_update_method('ntp', ntp_time_updatetime)
 time_updatetime(12345)
 
 

@@ -141,7 +141,8 @@ def _sendbuffer():
         if socket is None:
           socket = _getsocket()
         socket.send(posts[count])
-        count += 1
+        if socket.recv(3) == '200':
+          count += 1
       except Exception as e:
         if not isinstance(e, SocketWouldBlockError):
           socket = None
@@ -192,6 +193,8 @@ def storesense_post(data, device_id, collection, user):
   try:
     socket = _getsocket()
     socket.send(post)
+    if socket.recv(3) != '200':
+      _write_to_buffer(post)
     socket.close()
   except AttributeError or TimeoutError or InternetConnectivityError \
       or SocketClosedLocal or SocketClosedRemote or SocketWouldBlockError as e:

@@ -189,8 +189,8 @@ def storesense_post(data, device_id, collection, user):
     None.
   """
   post = _buildpost(data, device_id, collection, user)
-  socket = _getsocket()
   try:
+    socket = _getsocket()
     socket.send(post)
     socket.close()
   except AttributeError or TimeoutError or InternetConnectivityError \

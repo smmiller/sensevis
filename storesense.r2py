@@ -15,7 +15,7 @@
 
 Example Use:
   # In your program, import this library:
-  dy_import_module_symbols('storesense.r2py')
+  storesense = dy_import_module('storesense.r2py')
 
   device_id = request_data(my_sensor_socket, 'getDeviceID', [])
   
@@ -23,13 +23,13 @@ Example Use:
   measurements = {}
   
   # Collect some data...
-  for x in range(0, 10):
+  for x in range(SAMPLE_SIZE):
     measurements['gps'] = getLocation()
     measurements['speed'] = getSpeed()
     measurements['fuel_level'] = getFuelLevel()
     measurements['fuel_consumption'] = getFuelConsumption()
-    # Each data entry requires a timestamp for the POST to succeed.
-    data.append(storesense_timestamp(measurements))
+    # Each data entry needs a timestamp
+    data.append()
 
   storesense_post(data, device_id, 'mycollection', 'myusername')
    

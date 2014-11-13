@@ -18,6 +18,9 @@ Example Use:
   storesense = dy_import_module('storesense.r2py')
 
   device_id = request_data(my_sensor_socket, 'getDeviceID', [])
+ 
+  # initialize the library  
+  storesense.init()
   
   data = []
   measurements = {}
@@ -29,9 +32,12 @@ Example Use:
     measurements['fuel_level'] = getFuelLevel()
     measurements['fuel_consumption'] = getFuelConsumption()
     # Each data entry needs a timestamp
-    data.append()
+    entry = storesense.storesense_timestamp(measurements)
+    data.append(entry)
+    
+  priority = 0
 
-  storesense_post(data, device_id, 'mycollection', 'myusername')
+  storesense_post(data, device_id, 'mycollection', 'myusername', priority)
    
 """
 
@@ -41,6 +47,9 @@ json = dy_import_module("json.r2py")
 dy_import_module_symbols("priority_queue.r2py")
 httpretrieve = dy_import_module("httpretrieve.r2py")
 time = dy_import_module("time.r2py")
+
+# initialize time module with a port
+time.time_updatetime(list(getresources()[0]['connport'])[0])
 
 # We are using a priority queue for buffer tracking
 _TX_QUEUE = PriorityQueue()

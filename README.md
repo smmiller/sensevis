@@ -1,7 +1,7 @@
 SenseVis
 ========
 
-Assuming you have installed [Sensibility Testbed] (sensibilitytestbed.com), to get started with SenseVis,
+Assuming you have installed [Sensibility Testbed] (https://sensibilitytestbed.com), to get started with SenseVis,
 go to <http://sensevis.poly.edu>.
 
 ### Creating an Account

@@ -5,7 +5,7 @@ Assuming you have installed [Sensibility Testbed] (https://sensibilitytestbed.co
 go to <http://sensevis.poly.edu>.
 
 ### Creating an Account
-1. Once you are at [SenseVis] (sensevis.poly.edu), you will see a login page. Click on "New Account."
+1. Once you are at [SenseVis] (http://sensevis.poly.edu), you will see a login page. Click on "New Account."
 2. Fill out the form on the New Account Page and hit "Submit."
 3. If there were no errors, you will be redirected to your personal account page.
 

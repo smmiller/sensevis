@@ -1,0 +1,257 @@
+"""
+<Program Name>
+  sensevislib.r2py
+
+<Started>
+  20 August 2014
+
+<Author>
+  Seth Miller (NYU)
+  Dennis Mirante (NYU)
+
+<Purpose>
+  This is a library for backhauling sensor data to SenseVis (sensevis.poly.edu),
+  a remote database server for Sensibility Testbed. Callers must have pre-existing 
+  SenseVis accounts, experiments, and datasets in to order to backhaul sensor data.
+  Instructions for setting up a database with SenseVis can be found at
+  https://github.com/SensiblityTestbed/sensevis.
+
+
+
+Example Use:
+
+  getsensor = dy_import_module("getsensor.r2py")
+
+  # Import this library:
+  sensevislib = dy_import_module("sensevislib.r2py")
+  
+  # Open the database like a file.
+  sensevisfile = sensevislib.open("username/experiment/dataset")
+
+  # Capture some data, e.g.
+  data = getsensor.get_location()
+
+  # Label as this device's data
+  data['deviceID'] = 'myphone'
+
+  sensevisfile.write(data)
+ 
+  sensevisfile.close()
+   
+"""
+
+dy_import_module_symbols("priority_queue.r2py")
+json = dy_import_module("json.r2py")
+httpretrieve = dy_import_module("httpretrieve.r2py")
+
+
+
+BLOCKSIZE = 150 # entries
+SLEEPTIME = 5
+RETRYMAX = 5
+
+HOSTNAME = "http://sensevis.poly.edu:8000/backhaul"
+HEADERS = {"Content-Type": "application/x-www-form-urlencoded"}
+
+HTTP_OK = 200
+HTTP_BADREQUEST = 400
+HTTP_NOTFOUND = 404
+HTTP_CONFLICT = 409
+
+
+
+
+class SensevisFile:
+
+  def __init__(self, path):
+    self.path = path
+    self.buffer = PriorityQueue()
+    self.lock = createlock()
+    self.opened = True
+    createthread(self._backhaul())
+
+
+  """ Checks if the buffer is empty """
+  def _empty(self):
+    self.lock.acquire(True)
+    empty = self.buffer.getMinimum() is None
+    self.lock.release()
+    return empty
+
+    
+  """ Gets the next block of data for backhauling """
+  def _getblock(self):
+    self.lock.acquire(True)
+    block = []
+    entry = self.buffer.deleteMinimum()
+    # Grab as much data as we can by priority
+    while entry is not None and len(block) < BLOCKSIZE:
+      block.append(entry[1])
+      entry = self.buffer.deleteMinimum()
+    self.lock.release()
+    return block
+
+
+  """ Checks if the data needs resending (backhaul failed) """
+  def _retry(self, status):
+    retry = False
+    
+    if status == HTTP_OK:
+      log("\t\tSensor data stored.")
+
+    elif status == HTTP_BADREQUEST:
+      log("\t\tSensor data not in JSON format.\n")
+      retry = True
+
+    elif status == HTTP_NOTFOUND:
+      log("\t\tSenseVis path not found.\n")
+    
+    elif status == HTTP_CONFLICT:
+      log("\t\tSensor data inconsistent.\n" )
+      
+    else:
+      log("\t\tUnknown response: ", status, '\n')
+
+    return retry
+
+
+  """ A closure that backhauls sensor data in a separate thread """
+  def _backhaul(self):
+    def enclosed():
+
+      while self.opened:
+        log("Backhauling...\n")
+
+        # Sleep until there's data 
+        if self._empty():
+          log("\tBuffer empty, going to sleep...\n")
+          sleep(SLEEPTIME)
+          continue
+
+        retries = 0
+    
+        # There's data to backhaul now,
+        # so let's get the first block.
+        block = self._getblock()
+
+        while len(block) != 0:
+       
+          log("\tSending ", len(block), " entries.\n")
+
+          # Build IP packet body
+          data = {"user": self.path[0], "exp": self.path[1], "set": self.path[2], "entries": json.dumps(block)}
+
+          try:
+            response = httpretrieve.httpretrieve_open(HOSTNAME, None, data, HEADERS, None, timeout=10)
+            response.close()
+          except Exception as e:
+            log("\n\thttpretrive_open exception = ", repr(e), "\n\n")
+            continue
+      
+          retry = self._retry(response.httpstatus[1])
+          # Did the backhaul fail?
+          if retry:
+            retries += 1
+          # Are we out of retries or did the backhaul succeed?
+          if retries >= RETRYMAX or not retry:      
+            retries = 0
+            block = self._getblock()
+
+    return enclosed
+
+
+  ############ PUBLIC METHODS #########################################
+
+
+  def write(self, data, priority=0):
+    """
+    <Purpose>
+      Writes sensor data to the file-like object's buffer where it will
+      periodically be backhauled (to SenseVis) in blocks, or batches.
+
+    <Arguments>
+      data:
+          A dictionary of sensor data to be stored, whose key values are 
+          chosen by the caller. It must contain the keys 'time' and 
+          'deviceID'. The deviceID is meant to differentiate phones, and 
+          may be chosen arbitrarily. For example, "myphone" is an acceptable 
+          deviceID. 
+      priority (Optional):
+          The priority of the data entry to be written. Data with lower
+          priorities are backhauled sooner.
+
+    <Exceptions>
+      IOError:
+          The file-like object was closed, then written to.
+      TypeError:
+          The data given is not a dictionary.
+      KeyError:
+          The 'time' or 'deviceID' keys are missing from the data dictionary. 
+
+    <Side Effects>
+      Inserts sensor data into a buffer for backhauling.
+
+    <Returns>
+      None.
+    """
+    ######### Sanity checks #################
+    if not self.opened:
+      raise IOError("Cannot write to closed SenseVis file-like object.")
+   
+    if not isinstance(data, dict):
+      raise TypeError("Not a dictionary: " + str(data))
+
+    if 'time' not in data:
+      raise KeyError("Key 'time' missing from: " + str(data))
+
+    if 'deviceID' not in data:
+      raise KeyError("Key 'deviceID' missing from: " + str(data))
+
+
+    # Data is good, so lock the buffer
+    # and insert it.
+    self.lock.acquire(True)
+    self.buffer.insert(priority, data) 
+    self.lock.release()
+
+
+
+  """ Closes the file-like object (i.e. ceases backhauling) """
+  def close(self):
+    self.opened = False
+
+
+
+
+
+def open(path):
+  """
+    <Purpose>
+      Opens a file-like object for writing sensor data to a SenseVis database.
+
+    <Arguments>
+      path:
+          A string of the form 'username/experiment/dataset' specifying the 
+          database to write to. 
+
+    <Exceptions>
+      ValueError:
+          The path is missing one or more of the username, experiment, dataset
+          arguments.
+      
+    <Side Effects>
+      Constructs a file-like object that creates a new thread for backhauling
+      sensor data.
+
+    <Returns>
+      A file-like object which sensor data can be written to.
+    """
+  pieces = path.split('/')
+  if len(pieces) != 3:
+    raise ValueError("Invalid SenseVis path -- missing argument(s).")
+  return SensevisFile(pieces) 
+
+
+
+
+  

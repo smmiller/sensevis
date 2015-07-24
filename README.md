@@ -20,4 +20,4 @@ go to <http://sensevis.poly.edu>.
 3. If there were no errors, you will be redirected to a page for your newly created data set.
 
 ### Storing Data in a Data Set
-In your experiment script (i.e. the program collecting data from smartphones), use the library [storesense.r2py] (https://github.com/smmiller/sensevis/blob/master/storesense.r2py) as shown in the example the library gives in its documentation.
+In your experiment script (i.e. the program collecting data from smartphones), use the library [sensevislib.r2py] (https://github.com/smmiller/sensevis/blob/master/sensevislib.r2py) as shown in the example the library gives in its documentation.
